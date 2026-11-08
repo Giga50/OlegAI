@@ -99,28 +99,6 @@ button {
     text-align: left;
 }
 
-.auth-box input {
-    width: 100%;
-    padding: 14px;
-    margin-bottom: 12px;
-    background: #292b36;
-    color: white;
-    border: 1px solid #393b48;
-    border-radius: 10px;
-    outline: none;
-}
-
-.auth-box input:focus {
-    border-color: #7965ed;
-}
-
-.auth-box input.code-input {
-    text-align: center;
-    font-size: 26px;
-    letter-spacing: 8px;
-    padding-left: 22px;
-}
-
 .primary {
     background: #7965ed;
     color: white;
@@ -133,33 +111,6 @@ button {
 
 .primary:disabled {
     opacity: 0.6;
-    cursor: default;
-}
-
-.switch-auth {
-    margin-top: 18px;
-    color: #a99aff;
-    background: none;
-    border: none;
-}
-
-.auth-links {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 16px;
-}
-
-.link-btn {
-    background: none;
-    border: none;
-    color: #a99aff;
-    font-size: 14px;
-    padding: 4px 0;
-}
-
-.link-btn:disabled {
-    color: #666;
     cursor: default;
 }
 
@@ -542,37 +493,11 @@ button {
 <section id="auth">
     <div class="auth-box">
         <div class="logo">OlegAI</div>
+        <p>Войди через GitHub, чтобы начать</p>
 
-        <!-- Шаг 1: почта -->
-        <form id="emailForm" novalidate>
-            <p id="auth-title">Войди в свой аккаунт</p>
+        <p class="error" id="authError" role="alert"></p>
 
-            <input id="email" type="email" inputmode="email" autocomplete="email"
-                   autocapitalize="none" spellcheck="false" placeholder="Почта">
-            <p class="error" id="emailError" role="alert"></p>
-
-            <button class="primary" id="sendCodeBtn" type="submit">Получить код</button>
-
-            <button class="switch-auth" id="switchAuth" type="button">
-                Нет аккаунта? Зарегистрироваться
-            </button>
-        </form>
-
-        <!-- Шаг 2: код из письма -->
-        <form id="codeForm" novalidate hidden>
-            <p id="codeHint"></p>
-
-            <input id="code" class="code-input" type="text" inputmode="numeric"
-                   autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" placeholder="······">
-            <p class="error" id="codeError" role="alert"></p>
-
-            <button class="primary" id="verifyBtn" type="submit">Подтвердить</button>
-
-            <div class="auth-links">
-                <button class="link-btn" id="resendBtn" type="button">Отправить код снова</button>
-                <button class="link-btn" id="backBtn" type="button">Изменить почту</button>
-            </div>
-        </form>
+        <button class="primary" id="githubBtn" type="button">Войти через GitHub</button>
     </div>
 </section>
 
@@ -650,7 +575,6 @@ button {
 
     const BUCKET = 'chat-images';
     const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-    const RESEND_SECONDS = 60;
     const SIGNED_URL_TTL = 60 * 60;
     const DEFAULT_TITLE = 'Новый чат';
     const LAST_CHAT_KEY = 'olegai:last-chat';
@@ -667,14 +591,12 @@ button {
         auth: {
             persistSession: true,
             autoRefreshToken: true,
-            detectSessionInUrl: false
+            detectSessionInUrl: true
         }
     });
 
     const state = {
         user: null,
-        registering: false,
-        email: '',
         chats: [],
         currentChatId: null,
         messages: [],
@@ -710,33 +632,16 @@ button {
         appBox.style.display = name === 'app' ? 'block' : 'none';
     }
 
-    function isEmail(value) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
-    }
-
     function authError(err) {
         const msg = String((err && err.message) || '').toLowerCase();
-        const status = err && err.status;
 
-        if (status === 429 || msg.includes('rate limit') || msg.includes('security purposes')) {
-            return 'Слишком много запросов. Подожди минуту и попробуй снова.';
-        }
-        if (msg.includes('signups not allowed') || msg.includes('user not found')) {
-            return 'Аккаунта с такой почтой нет. Нажми «Зарегистрироваться».';
-        }
-        if (msg.includes('email') && (msg.includes('invalid') || msg.includes('validate'))) {
-            return 'Проверь адрес почты: он указан неверно.';
-        }
-        if (msg.includes('expired') || msg.includes('invalid')) {
-            return 'Код неверный или устарел. Запроси новый код.';
-        }
-        if (msg.includes('error sending') || msg.includes('smtp')) {
-            return 'Не удалось отправить письмо. Проверь настройки SMTP в Supabase.';
+        if (msg.includes('provider is not enabled') || msg.includes('unsupported provider')) {
+            return 'Вход через GitHub не включён в Supabase. Включи его в Authentication → Sign In / Providers.';
         }
         if (msg.includes('failed to fetch') || msg.includes('network')) {
             return 'Нет связи с сервером. Проверь интернет.';
         }
-        return 'Что-то пошло не так: ' + ((err && err.message) || 'неизвестная ошибка');
+        return 'Не удалось войти: ' + ((err && err.message) || 'неизвестная ошибка');
     }
 
     function dataError(err, fallback) {
@@ -759,152 +664,45 @@ button {
         return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     }
 
-    // Авторизация
+    // Авторизация через GitHub
 
-    function setAuthMode(registering) {
-        state.registering = registering;
-
-        $('auth-title').textContent = registering
-            ? 'Создай аккаунт'
-            : 'Войди в свой аккаунт';
-
-        $('switchAuth').textContent = registering
-            ? 'Уже есть аккаунт? Войти'
-            : 'Нет аккаунта? Зарегистрироваться';
-
-        $('emailError').textContent = '';
+    function resetLoginButton() {
+        const btn = $('githubBtn');
+        btn.disabled = false;
+        btn.textContent = 'Войти через GitHub';
     }
 
-    function showEmailStep() {
-        $('codeForm').hidden = true;
-        $('emailForm').hidden = false;
-        $('code').value = '';
-        $('codeError').textContent = '';
-        stopResendTimer();
-    }
-
-    function showCodeStep() {
-        $('emailForm').hidden = true;
-        $('codeForm').hidden = false;
-        $('codeHint').textContent = 'Мы отправили 6-значный код на ' + state.email;
-        $('code').value = '';
-        $('codeError').textContent = '';
-        startResendTimer();
-        $('code').focus();
-    }
-
-    let resendTimer = null;
-
-    function startResendTimer() {
-        stopResendTimer();
-        const btn = $('resendBtn');
-        let left = RESEND_SECONDS;
+    async function loginWithGitHub() {
+        const btn = $('githubBtn');
+        $('authError').textContent = '';
         btn.disabled = true;
-        btn.textContent = 'Отправить снова через ' + left + ' с';
+        btn.textContent = 'Переходим на GitHub…';
 
-        resendTimer = setInterval(() => {
-            left -= 1;
-            if (left <= 0) {
-                stopResendTimer();
-            } else {
-                btn.textContent = 'Отправить снова через ' + left + ' с';
+        const { error } = await db.auth.signInWithOAuth({
+            provider: 'github',
+            options: {
+                // Возвращаемся на эту же страницу
+                redirectTo: window.location.origin + window.location.pathname
             }
-        }, 1000);
-    }
-
-    function stopResendTimer() {
-        clearInterval(resendTimer);
-        resendTimer = null;
-        $('resendBtn').disabled = false;
-        $('resendBtn').textContent = 'Отправить код снова';
-    }
-
-    // Для входа shouldCreateUser = false: новых пользователей так не создаём
-    function requestCode(email) {
-        return db.auth.signInWithOtp({
-            email: email,
-            options: { shouldCreateUser: state.registering }
         });
-    }
 
-    async function submitEmail() {
-        const email = $('email').value.trim().toLowerCase();
-        const errorBox = $('emailError');
-        const btn = $('sendCodeBtn');
-        errorBox.textContent = '';
-
-        if (!isEmail(email)) {
-            errorBox.textContent = 'Введи почту в формате name@example.com';
-            return;
-        }
-
-        btn.disabled = true;
-        btn.textContent = 'Отправляем…';
-
-        try {
-            const { error } = await requestCode(email);
-            if (error) throw error;
-            state.email = email;
-            showCodeStep();
-        } catch (err) {
-            errorBox.textContent = authError(err);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Получить код';
+        // При успехе браузер уходит на GitHub, сюда мы попадаем только при ошибке
+        if (error) {
+            $('authError').textContent = authError(error);
+            resetLoginButton();
         }
     }
 
-    async function resendCode() {
-        const btn = $('resendBtn');
-        $('codeError').textContent = '';
-        btn.disabled = true;
-
-        try {
-            const { error } = await requestCode(state.email);
-            if (error) throw error;
-            toast('Новый код отправлен');
-            startResendTimer();
-        } catch (err) {
-            $('codeError').textContent = authError(err);
-            btn.disabled = false;
-        }
+    // Если GitHub или Supabase вернули ошибку в адресе, показываем её
+    function readRedirectError() {
+        const params = new URLSearchParams(window.location.hash.replace(/^#/, '') + '&' + window.location.search.replace(/^\?/, ''));
+        const text = params.get('error_description') || params.get('error');
+        if (text) $('authError').textContent = text.replace(/\+/g, ' ');
     }
 
-    let verifying = false;
-
-    async function submitCode() {
-        if (verifying) return;
-
-        const token = $('code').value.trim();
-        const errorBox = $('codeError');
-        const btn = $('verifyBtn');
-        errorBox.textContent = '';
-
-        if (!/^\d{6}$/.test(token)) {
-            errorBox.textContent = 'Введи все 6 цифр кода.';
-            return;
-        }
-
-        verifying = true;
-        btn.disabled = true;
-        btn.textContent = 'Проверяем…';
-
-        try {
-            const { error } = await db.auth.verifyOtp({
-                email: state.email,
-                token: token,
-                type: 'email'
-            });
-            if (error) throw error;
-            // Дальше сработает onAuthStateChange и откроет приложение
-        } catch (err) {
-            errorBox.textContent = authError(err);
-            $('code').select();
-        } finally {
-            verifying = false;
-            btn.disabled = false;
-            btn.textContent = 'Подтвердить';
-        }
+    function cleanUrl() {
+        const hasAuthParams = /access_token|error_description|[?&]code=/.test(window.location.href);
+        if (hasAuthParams) history.replaceState(null, '', window.location.pathname);
     }
 
     async function logout() {
@@ -921,7 +719,7 @@ button {
         } else {
             state.user = null;
             resetApp();
-            showEmailStep();
+            resetLoginButton();
             showScreen('auth');
         }
     }
@@ -948,7 +746,8 @@ button {
     }
 
     async function openApp() {
-        $('profileName').textContent = state.user.email || 'Пользователь';
+        const meta = state.user.user_metadata || {};
+        $('profileName').textContent = meta.user_name || state.user.email || 'Пользователь';
 
         try {
             await ensureProfile(state.user);
@@ -1318,30 +1117,7 @@ button {
 
     // Подключение событий
 
-    $('emailForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        submitEmail();
-    });
-
-    $('codeForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        submitCode();
-    });
-
-    $('switchAuth').addEventListener('click', () => setAuthMode(!state.registering));
-    $('resendBtn').addEventListener('click', resendCode);
-
-    $('backBtn').addEventListener('click', () => {
-        showEmailStep();
-        $('email').focus();
-    });
-
-    $('code').addEventListener('input', () => {
-        const field = $('code');
-        field.value = field.value.replace(/\D/g, '').slice(0, 6);
-        $('codeError').textContent = '';
-        if (field.value.length === 6) submitCode();
-    });
+    $('githubBtn').addEventListener('click', loginWithGitHub);
 
     $('logoutBtn').addEventListener('click', logout);
 
@@ -1381,8 +1157,13 @@ button {
 
     // Старт. getSession читает сессию из localStorage:
     // поэтому после перезагрузки страницы пользователь остаётся в аккаунте.
+    readRedirectError();
+
     db.auth.getSession()
-        .then(({ data }) => handleSession(data.session))
+        .then(({ data }) => {
+            cleanUrl();
+            return handleSession(data.session);
+        })
         .catch((err) => {
             console.error(err);
             showScreen('auth');
