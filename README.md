@@ -52,3 +52,7 @@ OlegAI — экспериментальный проект Giga50, посвящ�
 ## Автор
 
 **Giga50** · [GitHub](https://github.com/Giga50)
+
+## Тик ток аккаунт
+
+[tiktok](tiktok.com/@olegai_official)
