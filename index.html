@@ -308,6 +308,11 @@ button {
     font-size: 12px;
 }
 
+.message.typing {
+    color: #999;
+    font-style: italic;
+}
+
 /* Ввод */
 
 .input-area {
@@ -572,6 +577,9 @@ button {
     // Эти значения публичные. Ключ service_role сюда вставлять нельзя.
     const SUPABASE_URL = 'https://dnhsiffybjdtzmasvjyt.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_zy4zLBC48NTL_KhnuFGe2w_JHyv7s_K';
+
+    const WORKER_URL = 'https://olegai-api.djdhhfjfjf887.workers.dev/';
+    const HISTORY_LIMIT = 20;
 
     const BUCKET = 'chat-images';
     const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
@@ -1057,7 +1065,7 @@ button {
 
             await renameChatFromMessage(chatId, text);
 
-            // Здесь позже подключим API настоящего OlegAI
+            await askAI(chatId);
         } catch (err) {
             console.error(err);
             toast(dataError(err, 'Сообщение не отправлено.'), true);
@@ -1065,6 +1073,91 @@ button {
             state.sending = false;
             sendBtn.disabled = false;
             input.focus();
+        }
+    }
+
+    // Ответ ИИ
+
+    function showTyping(chatId) {
+        if (state.currentChatId !== chatId) return null;
+
+        const node = document.createElement('div');
+        node.className = 'message ai typing';
+        node.textContent = 'OlegAI думает…';
+
+        const box = $('messages');
+        box.appendChild(node);
+        box.scrollTop = box.scrollHeight;
+        return node;
+    }
+
+    async function askAI(chatId) {
+        const typing = showTyping(chatId);
+
+        try {
+            // Историю берём из базы: там уже лежит только что отправленное сообщение
+            const history = await db
+                .from('messages')
+                .select('role, content')
+                .eq('chat_id', chatId)
+                .order('created_at', { ascending: false })
+                .limit(HISTORY_LIMIT);
+
+            if (history.error) throw history.error;
+
+            const messages = history.data.reverse().map((m) => ({
+                role: m.role,
+                content: m.content || '[фото]'
+            }));
+
+            const { data: sessionData } = await db.auth.getSession();
+            const token = sessionData.session && sessionData.session.access_token;
+            if (!token) throw new Error('Нет активной сессии, войди заново.');
+
+            const res = await fetch(WORKER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ messages: messages })
+            });
+
+            let body = {};
+            try {
+                body = await res.json();
+            } catch (e) {
+                // тело не JSON, ниже покажем код ответа
+            }
+
+            if (!res.ok || !body.reply) {
+                throw new Error(body.error || 'Сервер ИИ ответил с ошибкой ' + res.status);
+            }
+
+            const saved = await db
+                .from('messages')
+                .insert({
+                    chat_id: chatId,
+                    user_id: state.user.id,
+                    role: 'assistant',
+                    content: body.reply
+                })
+                .select('id, chat_id, role, content, image_path, created_at')
+                .single();
+
+            if (saved.error) throw saved.error;
+
+            if (typing) typing.remove();
+
+            if (state.currentChatId === chatId) {
+                state.messages.push(saved.data);
+                appendMessage(saved.data);
+            }
+        } catch (err) {
+            console.error(err);
+            toast('OlegAI не ответил: ' + (err.message || 'ошибка'), true);
+        } finally {
+            if (typing) typing.remove();
         }
     }
 
