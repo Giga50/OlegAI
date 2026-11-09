@@ -1091,6 +1091,22 @@ button {
         return node;
     }
 
+    // Достаём текст ответа: воркер может назвать поле по-разному
+    function pickReply(body) {
+        const candidates = [
+            body.reply,
+            body.response,
+            body.answer,
+            body.text,
+            body.message,
+            body.content,
+            body.result && body.result.response,
+            body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content
+        ];
+        const found = candidates.find((v) => typeof v === 'string' && v.trim());
+        return found ? found.trim() : '';
+    }
+
     async function askAI(chatId) {
         const typing = showTyping(chatId);
 
@@ -1119,15 +1135,18 @@ button {
                 body: JSON.stringify({ messages: messages })
             });
 
+            const raw = await res.text();
             let body = {};
             try {
-                body = await res.json();
+                body = JSON.parse(raw);
             } catch (e) {
-                // тело не JSON, ниже покажем код ответа
+                // тело не JSON, ниже покажем его начало
             }
+            if (!body || typeof body !== 'object') body = {};
 
-            if (!res.ok || !body.reply) {
-                throw new Error(body.error || 'Сервер ИИ ответил с ошибкой ' + res.status);
+            const reply = pickReply(body);
+            if (!res.ok || !reply) {
+                throw new Error(body.error || 'Неожиданный ответ сервера ИИ (' + res.status + '): ' + raw.slice(0, 140));
             }
 
             const saved = await db
@@ -1136,7 +1155,7 @@ button {
                     chat_id: chatId,
                     user_id: state.user.id,
                     role: 'assistant',
-                    content: body.reply
+                    content: reply
                 })
                 .select('id, chat_id, role, content, image_path, created_at')
                 .single();
