@@ -1110,16 +1110,12 @@ button {
                 content: m.content || '[фото]'
             }));
 
-            const { data: sessionData } = await db.auth.getSession();
-            const token = sessionData.session && sessionData.session.access_token;
-            if (!token) throw new Error('Нет активной сессии, войди заново.');
-
+            // Воркер читает тело через request.json() и не проверяет заголовки.
+            // text/plain делает запрос «простым»: браузер не шлёт предварительный OPTIONS,
+            // поэтому для работы хватает заголовка Access-Control-Allow-Origin в ответе.
             const res = await fetch(WORKER_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
+                headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
                 body: JSON.stringify({ messages: messages })
             });
 
@@ -1155,7 +1151,10 @@ button {
             }
         } catch (err) {
             console.error(err);
-            toast('OlegAI не ответил: ' + (err.message || 'ошибка'), true);
+            const offline = /failed to fetch|networkerror|load failed/i.test(err.message || '');
+            toast(offline
+                ? 'Нет связи с сервером ИИ. Проверь интернет или откройте адрес воркера в браузере.'
+                : 'OlegAI не ответил: ' + (err.message || 'ошибка'), true);
         } finally {
             if (typing) typing.remove();
         }
