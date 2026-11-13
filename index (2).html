@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#101116">
+<title>OlegAI</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #101116;
+    color: white;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+button, input {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+/* Загрузка */
+
+#boot {
+    position: fixed;
+    inset: 0;
+    background: #101116;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid #292b35;
+    border-top-color: #8c79ff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Авторизация */
+
+#auth {
+    display: none;
+    height: 100vh;
+    height: 100dvh;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.auth-box {
+    width: 100%;
+    max-width: 380px;
+    background: #1b1d26;
+    padding: 30px;
+    border-radius: 18px;
+    text-align: center;
+}
+
+.logo {
+    font-size: 34px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #8c79ff;
+}
+
+.auth-box p {
+    color: #999;
+    margin-bottom: 25px;
+}
+
+.auth-box p.error {
+    color: #ff7b7b;
+    font-size: 14px;
+    min-height: 18px;
+    margin: -2px 0 12px;
+    text-align: left;
+}
+
+.primary {
+    background: #7965ed;
+    color: white;
+    border: none;
+    padding: 13px;
+    border-radius: 10px;
+    width: 100%;
+    font-weight: bold;
+}
+
+.primary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Основной интерфейс */
+
+#app {
+    display: none;
+    height: 100vh;
+    height: 100dvh;
+}
+
+.layout {
+    display: flex;
+    height: 100%;
+}
+
+/* Боковая панель */
+
+.sidebar {
+    width: 280px;
+    background: #191b23;
+    border-right: 1px solid #292b35;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h2 {
+    color: #a99aff;
+}
+
+.new-chat {
+    background: #7965ed;
+    border: none;
+    color: white;
+    padding: 9px 13px;
+    border-radius: 9px;
+}
+
+.chat-list {
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.chat-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    font: inherit;
+    padding: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 5px;
+    color: #ccc;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-item:hover,
+.chat-item.active {
+    background: #292b39;
+    color: white;
+}
+
+.profile {
+    margin-top: auto;
+    padding: 17px;
+    border-top: 1px solid #292b35;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logout {
+    background: none;
+    border: none;
+    color: #aaa;
+}
+
+.scrim {
+    display: none;
+}
+
+/* Область сообщений */
+
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.topbar {
+    height: calc(65px + env(safe-area-inset-top, 0px));
+    display: flex;
+    align-items: center;
+    padding: env(safe-area-inset-top, 0px) 22px 0;
+    border-bottom: 1px solid #292b35;
+    font-weight: bold;
+}
+
+.topbar span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 24px;
+    margin-right: 14px;
+    padding: 4px 6px;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.welcome {
+    margin: auto;
+    text-align: center;
+    color: #999;
+}
+
+.welcome h1 {
+    color: white;
+    margin-bottom: 12px;
+}
+
+.message {
+    max-width: 80%;
+    padding: 13px 15px;
+    border-radius: 13px;
+    line-height: 1.5;
+    position: relative;
+    overflow-wrap: anywhere;
+}
+
+.message .text {
+    white-space: pre-wrap;
+}
+
+.user {
+    align-self: flex-end;
+    background: #6554c9;
+}
+
+.ai {
+    align-self: flex-start;
+    background: #252731;
+}
+
+.message img {
+    max-width: 100%;
+    max-height: 280px;
+    border-radius: 9px;
+    display: block;
+    margin-top: 8px;
+}
+
+.message img:first-child {
+    margin-top: 0;
+}
+
+.message .img-fail {
+    color: #bbb;
+    font-size: 14px;
+}
+
+.copy {
+    display: block;
+    margin-top: 9px;
+    background: none;
+    border: none;
+    color: #bbb;
+    font-size: 12px;
+}
+
+.message.typing {
+    color: #999;
+    font-style: italic;
+}
+
+.suggestions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: min(520px, 100%);
+    margin: 24px auto 0;
+}
+
+.suggest {
+    background: #20222c;
+    border: 1px solid #363846;
+    color: #ddd;
+    border-radius: 12px;
+    padding: 13px;
+    text-align: left;
+}
+
+.suggest:hover {
+    border-color: #7965ed;
+    color: white;
+}
+
+.state-box {
+    margin: auto;
+    text-align: center;
+    color: #999;
+}
+
+.message.error {
+    background: #3a2230;
+    border: 1px solid #7a3550;
+    color: #ffd0d8;
+}
+
+.retry {
+    display: block;
+    margin-top: 9px;
+    background: none;
+    border: 1px solid #b24a68;
+    color: #ffd0d8;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+@media (max-width: 650px) {
+    .suggestions {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Ввод */
+
+.input-area {
+    padding: 15px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.composer {
+    max-width: 850px;
+    margin: auto;
+    background: #20222c;
+    border: 1px solid #363846;
+    border-radius: 15px;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px;
+    gap: 8px;
+}
+
+.composer textarea {
+    resize: none;
+    max-height: 140px;
+    font-size: 16px;
+    line-height: 1.4;
+    font-family: inherit;
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    padding: 10px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: #aaa;
+    font-size: 21px;
+    padding: 8px;
+}
+
+.send {
+    background: #7965ed;
+    color: white;
+    border: none;
+    padding: 11px 16px;
+    border-radius: 10px;
+}
+
+.send:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.preview-wrap {
+    display: none;
+    position: relative;
+    width: max-content;
+    max-width: 100%;
+    margin: 0 auto 10px;
+}
+
+#preview {
+    display: block;
+    max-width: 100px;
+    max-height: 90px;
+    border-radius: 8px;
+}
+
+.preview-remove {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: #3a3c4a;
+    color: white;
+    font-size: 13px;
+    line-height: 24px;
+    padding: 0;
+}
+
+/* Toast */
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    background: #292b39;
+    border: 1px solid #393b48;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 10px;
+    max-width: calc(100% - 32px);
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 90;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+.toast.bad {
+    border-color: #ff7b7b;
+}
+
+/* Телефоны: список чатов выезжает слева */
+
+@media(max-width: 650px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(300px, 85vw);
+        padding-top: env(safe-area-inset-top, 0px);
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+        z-index: 30;
+    }
+
+    .layout.menu-open .sidebar {
+        transform: translateX(0);
+    }
+
+    .scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.22s;
+        z-index: 20;
+    }
+
+    .layout.menu-open .scrim {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .menu-btn {
+        display: block;
+    }
+
+    .topbar {
+        padding: env(safe-area-inset-top, 0px) 14px 0;
+    }
+
+    .messages {
+        padding: 15px;
+    }
+
+    .message {
+        max-width: 92%;
+    }
+
+    .input-area {
+        padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .send {
+        padding: 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+        animation-duration: 0s !important;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="boot"><div class="spinner" aria-label="Загрузка"></div></div>
+
+<!-- Вход -->
+
+<section id="auth">
+    <div class="auth-box">
+        <div class="logo">OlegAI</div>
+        <p>Войди через GitHub, чтобы начать</p>
+
+        <p class="error" id="authError" role="alert"></p>
+
+        <button class="primary" id="githubBtn" type="button">Войти через GitHub</button>
+    </div>
+</section>
+
+<!-- Приложение -->
+
+<section id="app">
+<div class="layout" id="layout">
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>OlegAI</h2>
+            <button class="new-chat" id="newChatBtn" aria-label="Новый чат">+</button>
+        </div>
+
+        <div class="chat-list" id="chatList"></div>
+
+        <div class="profile">
+            <span id="profileName">Пользователь</span>
+            <button class="logout" id="logoutBtn">Выйти</button>
+        </div>
+    </aside>
+
+    <div class="scrim" id="scrim"></div>
+
+    <main class="main">
+        <header class="topbar">
+            <button class="menu-btn" id="menuBtn" aria-label="Список чатов">☰</button>
+            <span id="chatTitle">Новый чат</span>
+        </header>
+
+        <div class="messages" id="messages" aria-live="polite">
+            <div class="welcome">
+                <h1>Привет!</h1>
+                <p>Я OlegAI. Чем могу помочь?</p>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="preview-wrap" id="previewWrap">
+                <img id="preview" alt="Выбранное фото">
+                <button class="preview-remove" id="previewRemove" aria-label="Убрать фото">✕</button>
+            </div>
+
+            <div class="composer">
+                <input type="file" id="photoInput" accept="image/*" hidden>
+
+                <button class="icon-btn" id="attachBtn" aria-label="Прикрепить фото">+</button>
+
+                <textarea
+                    id="messageInput"
+                    rows="1"
+                    maxlength="4000"
+                    placeholder="Напиши сообщение..."
+                    aria-label="Сообщение"
+                    autocomplete="off"
+                ></textarea>
+
+                <button class="send" id="sendBtn" aria-label="Отправить">➤</button>
+            </div>
+        </div>
+    </main>
+
+</div>
+</section>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    // Настройки проекта.
+    // Взять в Supabase: Project Settings → API → Project URL и anon public key.
+    // Эти значения публичные. Ключ service_role сюда вставлять нельзя.
+    const SUPABASE_URL = 'https://dnhsiffybjdtzmasvjyt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_zy4zLBC48NTL_KhnuFGe2w_JHyv7s_K';
+
+    const WORKER_URL = 'https://olegai-api.djdhhfjfjf887.workers.dev/';
+    const HISTORY_LIMIT = 20;
+    const AI_TIMEOUT = 45000;   // сколько ждём ответ воркера, мс
+
+    const BUCKET = 'chat-images';
+    const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+    const SIGNED_URL_TTL = 60 * 60;
+    const DEFAULT_TITLE = 'Новый чат';
+    const LAST_CHAT_KEY = 'olegai:last-chat';
+
+    const boot = document.getElementById('boot');
+
+    if (!window.supabase || SUPABASE_URL.includes('YOUR-') || SUPABASE_ANON_KEY.includes('YOUR-')) {
+        boot.innerHTML = '<p style="max-width:320px;text-align:center;color:#ff7b7b;padding:0 20px">' +
+            'Впиши SUPABASE_URL и SUPABASE_ANON_KEY в начале скрипта в index.html.</p>';
+        return;
+    }
+
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+        }
+    });
+
+    const state = {
+        user: null,
+        chats: [],
+        currentChatId: null,
+        messages: [],
+        photoUrls: new Map(),   // путь в Storage -> временная ссылка
+        selectedPhoto: null,
+        previewUrl: null,
+        sending: false,
+        loading: false,
+        loadFailed: false,
+        loadToken: 0
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    // localStorage может быть недоступен (приватный режим), поэтому оборачиваем
+    function store(key, value) {
+        try {
+            if (value === undefined) return localStorage.getItem(key);
+            localStorage.setItem(key, value);
+        } catch (e) {
+            // ничего страшного: просто не запомним последний чат
+        }
+        return null;
+    }
+
+    const authBox = $('auth');
+    const appBox = $('app');
+    const layout = $('layout');
+
+    // Вспомогательные функции
+
+    let toastTimer = null;
+
+    function toast(text, isError) {
+        const t = $('toast');
+        t.textContent = text;
+        t.classList.toggle('bad', Boolean(isError));
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+    }
+
+    function showScreen(name) {
+        boot.hidden = true;
+        authBox.style.display = name === 'auth' ? 'flex' : 'none';
+        appBox.style.display = name === 'app' ? 'block' : 'none';
+    }
+
+    function authError(err) {
+        const msg = String((err && err.message) || '').toLowerCase();
+
+        if (msg.includes('provider is not enabled') || msg.includes('unsupported provider')) {
+            return 'Вход через GitHub не включён в Supabase. Включи его в Authentication → Sign In / Providers.';
+        }
+        if (msg.includes('failed to fetch') || msg.includes('network')) {
+            return 'Нет связи с сервером. Проверь интернет.';
+        }
+        return 'Не удалось войти: ' + ((err && err.message) || 'неизвестная ошибка');
+    }
+
+    function dataError(err, fallback) {
+        const msg = String((err && err.message) || '');
+        if (/failed to fetch|network/i.test(msg)) return 'Нет связи с сервером. Проверь интернет.';
+        if (/jwt expired|invalid jwt|not authenticated/i.test(msg)) {
+            return 'Сессия истекла. Обнови страницу и войди заново.';
+        }
+        if (/row-level security|permission denied/i.test(msg)) {
+            return 'Нет доступа к данным. Проверь политики RLS в Supabase.';
+        }
+        return fallback + (msg ? ' (' + msg + ')' : '');
+    }
+
+    function fileExtension(file) {
+        const fromName = (file.name.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (fromName && fromName.length <= 5) return fromName;
+        return (file.type.split('/')[1] || 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg';
+    }
+
+    function uid() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    }
+
+    // Авторизация через GitHub
+
+    function resetLoginButton() {
+        const btn = $('githubBtn');
+        btn.disabled = false;
+        btn.textContent = 'Войти через GitHub';
+    }
+
+    async function loginWithGitHub() {
+        const btn = $('githubBtn');
+        $('authError').textContent = '';
+        btn.disabled = true;
+        btn.textContent = 'Переходим на GitHub…';
+
+        const { error } = await db.auth.signInWithOAuth({
+            provider: 'github',
+            options: {
+                // Возвращаемся на эту же страницу
+                redirectTo: window.location.origin + window.location.pathname
+            }
+        });
+
+        // При успехе браузер уходит на GitHub, сюда мы попадаем только при ошибке
+        if (error) {
+            $('authError').textContent = authError(error);
+            resetLoginButton();
+        }
+    }
+
+    // Если GitHub или Supabase вернули ошибку в адресе, показываем её
+    function readRedirectError() {
+        const params = new URLSearchParams(window.location.hash.replace(/^#/, '') + '&' + window.location.search.replace(/^\?/, ''));
+        const text = params.get('error_description') || params.get('error');
+        if (text) $('authError').textContent = text.replace(/\+/g, ' ');
+    }
+
+    function cleanUrl() {
+        const hasAuthParams = /access_token|error_description|[?&]code=/.test(window.location.href);
+        if (hasAuthParams) history.replaceState(null, '', window.location.pathname);
+    }
+
+    async function logout() {
+        const { error } = await db.auth.signOut();
+        if (error) toast('Не удалось выйти: ' + error.message, true);
+    }
+
+    // Одна точка реакции на сессию: первая загрузка, вход, выход
+    async function handleSession(session) {
+        if (session && session.user) {
+            if (state.user && state.user.id === session.user.id) return;
+            state.user = session.user;
+            await openApp();
+        } else {
+            state.user = null;
+            resetApp();
+            resetLoginButton();
+            showScreen('auth');
+        }
+    }
+
+    db.auth.onAuthStateChange((event, session) => {
+        // Внутри колбэка нельзя ждать запросы к Supabase, поэтому откладываем
+        setTimeout(() => handleSession(session), 0);
+    });
+
+    // Профиль
+
+    async function ensureProfile(user) {
+        const found = await db.from('profiles').select('id').eq('id', user.id).maybeSingle();
+        if (found.error) {
+            console.warn('profiles select:', found.error);
+            return;
+        }
+        if (!found.data) {
+            const created = await db.from('profiles').insert({ id: user.id, email: user.email });
+            if (created.error && created.error.code !== '23505') {
+                console.warn('profiles insert:', created.error);
+            }
+        }
+    }
+
+    async function openApp() {
+        const meta = state.user.user_metadata || {};
+        $('profileName').textContent = meta.user_name || state.user.email || 'Пользователь';
+
+        try {
+            await ensureProfile(state.user);
+            await loadChats();
+
+            if (state.chats.length === 0) {
+                await createChat(true);
+            } else {
+                const saved = store(LAST_CHAT_KEY + ':' + state.user.id);
+                const chat = state.chats.find((c) => c.id === saved) || state.chats[0];
+                await selectChat(chat.id, true);
+            }
+        } catch (err) {
+            console.error(err);
+            toast(dataError(err, 'Не удалось загрузить данные.'), true);
+        }
+
+        showScreen('app');
+    }
+
+    function resetApp() {
+        state.chats = [];
+        state.currentChatId = null;
+        state.messages = [];
+        state.photoUrls.clear();
+        clearPhoto();
+        $('chatList').innerHTML = '';
+        $('messageInput').value = '';
+        autosize();
+        state.loading = false;
+        state.loadFailed = false;
+        closeMenu();
+        renderMessages();
+    }
+
+    // Чаты
+
+    async function loadChats() {
+        const { data, error } = await db
+            .from('chats')
+            .select('id, title, created_at')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        state.chats = data || [];
+        renderChats();
+    }
+
+    async function createChat(silent) {
+        const { data, error } = await db
+            .from('chats')
+            .insert({ user_id: state.user.id, title: DEFAULT_TITLE })
+            .select('id, title, created_at')
+            .single();
+
+        if (error) {
+            if (!silent) toast(dataError(error, 'Не удалось создать чат.'), true);
+            throw error;
+        }
+
+        state.chats.unshift(data);
+        await selectChat(data.id, true);
+    }
+
+    async function selectChat(chatId, keepMenu) {
+        state.currentChatId = chatId;
+        store(LAST_CHAT_KEY + ':' + state.user.id, chatId);
+
+        const chat = state.chats.find((c) => c.id === chatId);
+        $('chatTitle').textContent = chat ? chat.title : DEFAULT_TITLE;
+
+        renderChats();
+        if (!keepMenu) closeMenu();
+
+        const token = ++state.loadToken;
+        state.messages = [];
+        state.loading = true;
+        state.loadFailed = false;
+        renderMessages();
+
+        const { data, error } = await db
+            .from('messages')
+            .select('id, chat_id, role, content, image_path, created_at')
+            .eq('chat_id', chatId)
+            .order('created_at', { ascending: true });
+
+        if (token !== state.loadToken) return; // успели открыть другой чат
+
+        if (error) {
+            state.loading = false;
+            state.loadFailed = true;
+            renderMessages();
+            toast(dataError(error, 'Не удалось загрузить сообщения.'), true);
+            return;
+        }
+
+        state.messages = data || [];
+        await loadPhotoUrls(state.messages);
+        if (token !== state.loadToken) return;
+        state.loading = false;
+        renderMessages();
+    }
+
+    async function loadPhotoUrls(list) {
+        const paths = [];
+        list.forEach((m) => {
+            if (m.image_path && !state.photoUrls.has(m.image_path) && !paths.includes(m.image_path)) {
+                paths.push(m.image_path);
+            }
+        });
+        if (paths.length === 0) return;
+
+        const { data, error } = await db.storage.from(BUCKET).createSignedUrls(paths, SIGNED_URL_TTL);
+        if (error) {
+            console.warn('signed urls:', error);
+            return;
+        }
+        (data || []).forEach((item) => {
+            if (item.signedUrl) state.photoUrls.set(item.path, item.signedUrl);
+        });
+    }
+
+    function renderChats() {
+        const list = $('chatList');
+        list.innerHTML = '';
+
+        state.chats.forEach((chat) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'chat-item ' + (chat.id === state.currentChatId ? 'active' : '');
+            item.textContent = chat.title;
+            item.title = chat.title;
+            item.onclick = () => {
+                if (chat.id !== state.currentChatId) selectChat(chat.id);
+                else closeMenu();
+            };
+            list.appendChild(item);
+        });
+    }
+
+    // Название чата берём из первого сообщения
+    async function renameChatFromMessage(chatId, text) {
+        const chat = state.chats.find((c) => c.id === chatId);
+        if (!chat || chat.title !== DEFAULT_TITLE) return;
+
+        let title = 'Фото';
+        if (text) {
+            title = text.replace(/\s+/g, ' ');
+            if (title.length > 23) title = title.slice(0, 23) + '...';
+        }
+
+        const { error } = await db.from('chats').update({ title: title }).eq('id', chatId);
+        if (error) {
+            console.warn('rename chat:', error);
+            return;
+        }
+
+        chat.title = title;
+        renderChats();
+        if (state.currentChatId === chatId) $('chatTitle').textContent = title;
+    }
+
+    // Сообщения
+
+    function renderMessages() {
+        const box = $('messages');
+        box.innerHTML = '';
+
+        if (state.loading) {
+            box.appendChild(stateBox('Загружаем сообщения…'));
+            return;
+        }
+
+        if (state.loadFailed) {
+            const failed = stateBox('Не удалось загрузить сообщения.');
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'retry';
+            retry.textContent = 'Повторить';
+            retry.onclick = () => selectChat(state.currentChatId, true);
+            failed.appendChild(retry);
+            box.appendChild(failed);
+            return;
+        }
+
+        if (state.messages.length === 0) {
+            box.appendChild(buildWelcome());
+            return;
+        }
+
+        state.messages.forEach((message) => box.appendChild(buildMessage(message)));
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function stateBox(text) {
+        const div = document.createElement('div');
+        div.className = 'state-box';
+        div.textContent = text;
+        return div;
+    }
+
+    const SUGGESTIONS = [
+        ['Придумать идею', 'Придумай идею для моего нового проекта'],
+        ['Помочь с кодом', 'Помоги разобраться с кодом'],
+        ['Объяснить тему', 'Объясни сложную тему простыми словами'],
+        ['Придумать дизайн', 'Предложи необычный дизайн интерфейса']
+    ];
+
+    function buildWelcome() {
+        const welcome = document.createElement('div');
+        welcome.className = 'welcome';
+
+        const title = document.createElement('h1');
+        title.textContent = 'Привет!';
+        const lead = document.createElement('p');
+        lead.textContent = 'Я OlegAI. Чем могу помочь?';
+
+        const list = document.createElement('div');
+        list.className = 'suggestions';
+        SUGGESTIONS.forEach(([label, prompt]) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'suggest';
+            btn.textContent = label;
+            btn.onclick = () => {
+                if (state.sending || !state.currentChatId) return;
+                $('messageInput').value = prompt;
+                sendMessage();
+            };
+            list.appendChild(btn);
+        });
+
+        welcome.appendChild(title);
+        welcome.appendChild(lead);
+        welcome.appendChild(list);
+        return welcome;
+    }
+
+    function appendMessage(message) {
+        const box = $('messages');
+        box.querySelectorAll('.message.error').forEach((node) => node.remove());
+        const welcome = box.querySelector('.welcome');
+        if (welcome) welcome.remove();
+
+        box.appendChild(buildMessage(message));
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function photoFail() {
+        const fail = document.createElement('div');
+        fail.className = 'img-fail';
+        fail.textContent = 'Фото недоступно';
+        return fail;
+    }
+
+    // Временная ссылка на фото живёт час: если она устарела, просим новую один раз
+    async function refreshPhoto(img, path) {
+        if (img.dataset.retried) {
+            img.replaceWith(photoFail());
+            return;
+        }
+        img.dataset.retried = '1';
+        state.photoUrls.delete(path);
+        await loadPhotoUrls([{ image_path: path }]);
+
+        const url = state.photoUrls.get(path);
+        if (url) img.src = url;
+        else img.replaceWith(photoFail());
+    }
+
+    function buildMessage(message) {
+        const div = document.createElement('div');
+        div.className = 'message ' + (message.role === 'assistant' ? 'ai' : 'user');
+
+        if (message.image_path) {
+            const url = state.photoUrls.get(message.image_path);
+            if (url) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = 'Фото в сообщении';
+                img.loading = 'lazy';
+                img.onclick = () => window.open(img.src, '_blank', 'noopener');
+                img.onerror = () => refreshPhoto(img, message.image_path);
+                div.appendChild(img);
+            } else {
+                div.appendChild(photoFail());
+            }
+        }
+
+        if (message.content) {
+            const content = document.createElement('div');
+            content.className = 'text';
+            content.textContent = message.content;
+            div.appendChild(content);
+
+            const copy = document.createElement('button');
+            copy.className = 'copy';
+            copy.textContent = 'Копировать';
+
+            copy.onclick = async () => {
+                const ok = await copyText(message.content);
+                if (ok) {
+                    copy.textContent = 'Скопировано!';
+                    setTimeout(() => { copy.textContent = 'Копировать'; }, 1500);
+                } else {
+                    toast('Не удалось скопировать. Выдели текст вручную.', true);
+                }
+            };
+
+            div.appendChild(copy);
+        }
+
+        return div;
+    }
+
+    async function copyText(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (e) {
+            // Запасной вариант для старых браузеров
+            const area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+
+            let ok = false;
+            try {
+                ok = document.execCommand('copy');
+            } catch (err) {
+                ok = false;
+            }
+            area.remove();
+            return ok;
+        }
+    }
+
+    async function sendMessage() {
+        if (state.sending || !state.currentChatId) return;
+
+        const input = $('messageInput');
+        const text = input.value.trim();
+        const photo = state.selectedPhoto;
+
+        if (!text && !photo) return;
+
+        const chatId = state.currentChatId;
+        const sendBtn = $('sendBtn');
+
+        state.sending = true;
+        sendBtn.disabled = true;
+
+        try {
+            let imagePath = null;
+
+            if (photo) {
+                imagePath = state.user.id + '/' + chatId + '/' + uid() + '.' + fileExtension(photo);
+                const upload = await db.storage.from(BUCKET).upload(imagePath, photo, {
+                    contentType: photo.type || 'image/jpeg',
+                    upsert: false
+                });
+                if (upload.error) throw upload.error;
+            }
+
+            const { data, error } = await db
+                .from('messages')
+                .insert({
+                    chat_id: chatId,
+                    user_id: state.user.id,
+                    role: 'user',
+                    content: text,
+                    image_path: imagePath
+                })
+                .select('id, chat_id, role, content, image_path, created_at')
+                .single();
+
+            if (error) {
+                // Сообщение не записалось: удаляем загруженный файл, чтобы не копить мусор
+                if (imagePath) await db.storage.from(BUCKET).remove([imagePath]);
+                throw error;
+            }
+
+            input.value = '';
+            autosize();
+            clearPhoto();
+
+            if (state.currentChatId === chatId) {
+                await loadPhotoUrls([data]);
+                state.messages.push(data);
+                appendMessage(data);
+            }
+
+            await renameChatFromMessage(chatId, text);
+
+            await askAI(chatId);
+        } catch (err) {
+            console.error(err);
+            toast(dataError(err, 'Сообщение не отправлено.'), true);
+        } finally {
+            state.sending = false;
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    // Ответ ИИ
+
+    function showTyping(chatId) {
+        if (state.currentChatId !== chatId) return null;
+
+        const node = document.createElement('div');
+        node.className = 'message ai typing';
+        node.textContent = 'OlegAI думает…';
+
+        const box = $('messages');
+        box.appendChild(node);
+        box.scrollTop = box.scrollHeight;
+        return node;
+    }
+
+    // Достаём текст ответа: воркер может назвать поле по-разному
+    function pickReply(body) {
+        const candidates = [
+            body.reply,
+            body.response,
+            body.answer,
+            body.text,
+            body.message,
+            body.content,
+            body.result && body.result.response,
+            body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content
+        ];
+        const found = candidates.find((v) => typeof v === 'string' && v.trim());
+        return found ? found.trim() : '';
+    }
+
+    function aiErrorText(err) {
+        const msg = String((err && err.message) || '');
+        if (err && err.name === 'AbortError') return 'ИИ слишком долго отвечает.';
+        if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'Нет связи с сервером ИИ. Проверь интернет.';
+        return 'OlegAI не ответил: ' + (msg || 'ошибка');
+    }
+
+    // Ошибка показывается прямо в чате с кнопкой «Повторить». В базу она не сохраняется
+    function showAiError(chatId, err) {
+        if (state.currentChatId !== chatId) {
+            toast(aiErrorText(err), true);
+            return;
+        }
+
+        const node = document.createElement('div');
+        node.className = 'message ai error';
+
+        const text = document.createElement('div');
+        text.textContent = aiErrorText(err);
+        node.appendChild(text);
+
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'retry';
+        retry.textContent = 'Повторить';
+        retry.onclick = async () => {
+            if (state.sending) return;
+            node.remove();
+            state.sending = true;
+            $('sendBtn').disabled = true;
+            try {
+                await askAI(chatId);
+            } finally {
+                state.sending = false;
+                $('sendBtn').disabled = false;
+            }
+        };
+        node.appendChild(retry);
+
+        const box = $('messages');
+        box.appendChild(node);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    async function askAI(chatId) {
+        const typing = showTyping(chatId);
+
+        try {
+            // Историю берём из базы: там уже лежит только что отправленное сообщение
+            const history = await db
+                .from('messages')
+                .select('role, content')
+                .eq('chat_id', chatId)
+                .order('created_at', { ascending: false })
+                .limit(HISTORY_LIMIT);
+
+            if (history.error) throw history.error;
+
+            const messages = history.data.reverse().map((m) => ({
+                role: m.role,
+                content: m.content || '[фото]'
+            }));
+
+            // Воркер читает тело через request.json() и не проверяет заголовки.
+            // text/plain делает запрос «простым»: браузер не шлёт предварительный OPTIONS,
+            // поэтому для работы хватает заголовка Access-Control-Allow-Origin в ответе.
+            // Если воркер молчит дольше AI_TIMEOUT, обрываем запрос
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), AI_TIMEOUT);
+            let res;
+            let raw;
+            try {
+                res = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                    body: JSON.stringify({ messages: messages }),
+                    signal: controller.signal
+                });
+                raw = await res.text();
+            } finally {
+                clearTimeout(timer);
+            }
+
+            let body = {};
+            try {
+                body = JSON.parse(raw);
+            } catch (e) {
+                // тело не JSON, ниже покажем его начало
+            }
+            if (!body || typeof body !== 'object') body = {};
+
+            const reply = pickReply(body);
+            if (!res.ok || !reply) {
+                throw new Error(body.error || 'Неожиданный ответ сервера ИИ (' + res.status + '): ' + raw.slice(0, 140));
+            }
+
+            const saved = await db
+                .from('messages')
+                .insert({
+                    chat_id: chatId,
+                    user_id: state.user.id,
+                    role: 'assistant',
+                    content: reply
+                })
+                .select('id, chat_id, role, content, image_path, created_at')
+                .single();
+
+            if (saved.error) throw saved.error;
+
+            if (typing) typing.remove();
+
+            if (state.currentChatId === chatId) {
+                state.messages.push(saved.data);
+                appendMessage(saved.data);
+            }
+        } catch (err) {
+            console.error(err);
+            if (typing) typing.remove();
+            showAiError(chatId, err);
+        } finally {
+            if (typing) typing.remove();
+        }
+    }
+
+    function autosize() {
+        const input = $('messageInput');
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    }
+
+    // Фотографии
+
+    function clearPhoto() {
+        if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+        state.selectedPhoto = null;
+        state.previewUrl = null;
+
+        $('photoInput').value = '';
+        $('previewWrap').style.display = 'none';
+        $('preview').removeAttribute('src');
+    }
+
+    function selectPhoto(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast('Выбери изображение', true);
+            event.target.value = '';
+            return;
+        }
+
+        if (file.size > MAX_PHOTO_SIZE) {
+            toast('Максимальный размер фотографии — 5 МБ', true);
+            event.target.value = '';
+            return;
+        }
+
+        if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+
+        state.selectedPhoto = file;
+        state.previewUrl = URL.createObjectURL(file);
+
+        $('preview').src = state.previewUrl;
+        $('previewWrap').style.display = 'block';
+    }
+
+    // Меню на телефоне
+
+    function openMenu() {
+        layout.classList.add('menu-open');
+    }
+
+    function closeMenu() {
+        layout.classList.remove('menu-open');
+    }
+
+    // Подключение событий
+
+    $('githubBtn').addEventListener('click', loginWithGitHub);
+
+    $('logoutBtn').addEventListener('click', logout);
+
+    $('newChatBtn').addEventListener('click', async () => {
+        const btn = $('newChatBtn');
+        btn.disabled = true;
+        try {
+            await createChat(false);
+            closeMenu();
+            $('messageInput').focus();
+        } catch (err) {
+            // сообщение об ошибке уже показано в createChat
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    $('sendBtn').addEventListener('click', sendMessage);
+
+    // На компьютере Enter отправляет, Shift+Enter переносит строку.
+    // На телефоне Enter переносит строку, отправка по кнопке.
+    const canHover = window.matchMedia('(hover: hover)').matches;
+
+    $('messageInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && canHover) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    $('messageInput').addEventListener('input', autosize);
+
+    $('attachBtn').addEventListener('click', () => $('photoInput').click());
+    $('photoInput').addEventListener('change', selectPhoto);
+    $('previewRemove').addEventListener('click', clearPhoto);
+
+    $('menuBtn').addEventListener('click', openMenu);
+    $('scrim').addEventListener('click', closeMenu);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeMenu();
+    });
+
+    window.addEventListener('offline', () => toast('Нет интернета', true));
+    window.addEventListener('online', () => toast('Связь восстановлена'));
+
+    // Старт. getSession читает сессию из localStorage:
+    // поэтому после перезагрузки страницы пользователь остаётся в аккаунте.
+    readRedirectError();
+
+    db.auth.getSession()
+        .then(({ data }) => {
+            cleanUrl();
+            return handleSession(data.session);
+        })
+        .catch((err) => {
+            console.error(err);
+            showScreen('auth');
+        });
+})();
+</script>
+
+</body>
+</html>
